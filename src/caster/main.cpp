@@ -17,18 +17,20 @@ int main(int argc, char* argv[]) {
 
   auto node = std::make_shared<ImagePublisher>("image_publisher");
   int success = node->initializeParameters();
-  node->createConnection();
   if (success < 0) {
-    ERROR << "failed to create connection" << std::endl;
+    RCLCPP_ERROR(node->get_logger(), "Failed to init params");
     return CUS_FAILURE;
   }
+  node->createConnection();
 
   // if (rcode == CUS_SUCCESS) {
-  std::atomic_bool quitFlag(false);
-  std::thread eventLoop(cast_app::processEventLoop, std::ref(quitFlag));
-  eventLoop.join();
+  // std::atomic_bool quitFlag(false);
+  // std::thread eventLoop(cast_app::processEventLoop, std::ref(quitFlag));
+  // eventLoop.join();
   // }
-
-  cusCastDestroy();
+  // spin the node
+  RCLCPP_INFO(node->get_logger(), "Spinning node");
+  rclcpp::spin(node);
+  node->destroyConnection();
   return 0;
 }
