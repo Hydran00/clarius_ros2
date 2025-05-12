@@ -6,9 +6,10 @@ ImgContext imgContext;
 // Image callback from Clarius SDK
 void StoreImageFn(const void *newImage, const CusProcessedImageInfo *nfo,
                   int npos, const CusPosInfo *pos) {
-  (void)pos;  // Unused
+  (void)pos; // Unused
 
-  if (!newImage || !nfo) return;
+  if (!newImage || !nfo)
+    return;
 
   imgContext.width = nfo->width;
   imgContext.height = nfo->height;
@@ -35,8 +36,10 @@ ImagePublisher::ImagePublisher(const std::string &node_name,
               ipAddr_.c_str(), port_);
 
   // Setup publisher and services
-  us_image_publisher_ =
-      this->create_publisher<sensor_msgs::msg::Image>(us_image_topic_name_, 10);
+
+  // image publisher uses SensorDataQoS
+  us_image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
+      us_image_topic_name_, rclcpp::SensorDataQoS());
   enable_freeze_service_ = this->create_service<std_srvs::srv::SetBool>(
       "enable_freeze", std::bind(&ImagePublisher::enableFreeze, this,
                                  std::placeholders::_1, std::placeholders::_2));
@@ -112,20 +115,20 @@ int ImagePublisher::initializeParameters() {
 int ImagePublisher::createConnection() {
   RCLCPP_INFO(this->get_logger(), "Creating Clarius connection...");
 
-  return cusCastConnect(
-      ipAddr_.c_str(), port_, "research",
-      [](int imagePort, int imuPort, int swRevMatch) {
-        if (imagePort == CUS_FAILURE) {
-          RCLCPP_ERROR(rclcpp::get_logger("rclcpp"),
-                       "Could not connect to scanner");
-        } else {
-          RCLCPP_INFO_STREAM(
-              rclcpp::get_logger("rclcpp"),
-              "Connected: image port = "
-                  << imagePort << ", imu port = " << imuPort
-                  << ", software revision match = " << swRevMatch);
-        }
-      });
+  return cusCastConnect(ipAddr_.c_str(), port_, "research",
+                        [](int imagePort, int imuPort, int swRevMatch) {
+                          if (imagePort == CUS_FAILURE) {
+                            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"),
+                                         "Could not connect to scanner");
+                          } else {
+                            RCLCPP_INFO_STREAM(
+                                rclcpp::get_logger("rclcpp"),
+                                "Connected: image port = "
+                                    << imagePort << ", imu port = " << imuPort
+                                    << ", software revision match = "
+                                    << swRevMatch);
+                          }
+                        });
 }
 
 int ImagePublisher::destroyConnection() { return cusCastDestroy(); }
@@ -135,14 +138,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Opencv version: " << CV_VERSION << std::endl;
   // create window
   cv::namedWindow("Clarius US Image",
-                  cv::WINDOW_NORMAL);  // Makes the window resizable
-  // instantiate black window
-  // cv::Mat empty_img = cv::Mat::zeros(640, 480, CV_8UC4);
-  // cv::imshow("Clarius US Image", empty_img);
-  // cv::waitKey(0);
-  // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Clarius US Image window
-  // created");
-
+                  cv::WINDOW_NORMAL); // Makes the window resizable
   auto node = std::make_shared<ImagePublisher>("image_publisher");
   int success = node->initializeParameters();
   if (success < 0) {
@@ -151,12 +147,6 @@ int main(int argc, char *argv[]) {
   }
   node->createConnection();
 
-  // if (rcode == CUS_SUCCESS) {
-  // std::atomic_bool quitFlag(false);
-  // std::thread eventLoop(cast_app::processEventLoop, std::ref(quitFlag));
-  // eventLoop.join();
-  // }
-  // spin the node
   RCLCPP_INFO(node->get_logger(), "Spinning node");
   rclcpp::spin(node);
   node->destroyConnection();
