@@ -12,7 +12,7 @@
 #include <std_srvs/srv/set_bool.hpp>
 
 // CvBridge
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 
 // Clarius SDK
 #include "cast_app.h"

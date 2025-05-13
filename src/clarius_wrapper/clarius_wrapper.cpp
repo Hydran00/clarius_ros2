@@ -36,8 +36,10 @@ ImagePublisher::ImagePublisher(const std::string &node_name,
               ipAddr_.c_str(), port_);
 
   // Setup publisher and services
-  us_image_publisher_ =
-      this->create_publisher<sensor_msgs::msg::Image>(us_image_topic_name_, 10);
+
+  // image publisher uses SensorDataQoS
+  us_image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
+      us_image_topic_name_, rclcpp::SensorDataQoS());
   enable_freeze_service_ = this->create_service<std_srvs::srv::SetBool>(
       "enable_freeze", std::bind(&ImagePublisher::enableFreeze, this,
                                  std::placeholders::_1, std::placeholders::_2));
@@ -152,12 +154,6 @@ int main(int argc, char *argv[]) {
   }
   node->createConnection();
 
-  // if (rcode == CUS_SUCCESS) {
-  // std::atomic_bool quitFlag(false);
-  // std::thread eventLoop(cast_app::processEventLoop, std::ref(quitFlag));
-  // eventLoop.join();
-  // }
-  // spin the node
   RCLCPP_INFO(node->get_logger(), "Spinning node");
   rclcpp::spin(node);
   node->destroyConnection();
