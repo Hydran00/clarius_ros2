@@ -22,6 +22,8 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib/cast)
 
 # Executable
 add_executable(clarius_wrapper src/clarius_wrapper/clarius_wrapper.cpp)
+add_executable(contact_detector src/contact_detector/contact_detector.cpp)
+
 
 # Link the shared library
 target_link_libraries(clarius_wrapper cast ${OpenCV_LIBS})
@@ -32,8 +34,17 @@ ament_target_dependencies(clarius_wrapper
   std_srvs
   cv_bridge
 )
+ament_target_dependencies(contact_detector
+  rclcpp
+  sensor_msgs
+  std_srvs
+)
+
 # Install the executable
-install(TARGETS clarius_wrapper
+install(TARGETS clarius_wrapper 
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(TARGETS contact_detector 
   DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY launch

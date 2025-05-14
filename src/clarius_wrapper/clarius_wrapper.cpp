@@ -35,11 +35,8 @@ ImagePublisher::ImagePublisher(const std::string &node_name,
   RCLCPP_INFO(this->get_logger(), "Connecting to Clarius at %s:%u",
               ipAddr_.c_str(), port_);
 
-  // Setup publisher and services
-
-  // image publisher uses SensorDataQoS
-  us_image_publisher_ = this->create_publisher<sensor_msgs::msg::Image>(
-      us_image_topic_name_, rclcpp::SensorDataQoS());
+  us_image_publisher_ =
+      this->create_publisher<sensor_msgs::msg::Image>(us_image_topic_name_, 10);
   enable_freeze_service_ = this->create_service<std_srvs::srv::SetBool>(
       "enable_freeze", std::bind(&ImagePublisher::enableFreeze, this,
                                  std::placeholders::_1, std::placeholders::_2));
@@ -53,13 +50,6 @@ ImagePublisher::ImagePublisher(const std::string &node_name,
 }
 
 void ImagePublisher::publishUSImage() {
-  // if (!imgContext.newImageReceived) {
-  //   return;
-  // }
-
-  // cv::imshow("Clarius US Image", imgContext.us_image);
-  // cv::waitKey(1);
-
   auto image_msg =
       cv_bridge::CvImage(std_msgs::msg::Header(), "bgra8", imgContext.us_image)
           .toImageMsg();
@@ -73,15 +63,27 @@ void ImagePublisher::publishUSImage() {
 void ImagePublisher::enableFreeze(
     const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
     std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
-  RCLCPP_INFO(this->get_logger(), "Request to %s probe",
-              request->data ? "freeze" : "unfreeze");
+  std::string req = request->data ? "freeze" : "unfreeze";
+  RCLCPP_INFO(this->get_logger(), "Request to %s probe", req.c_str());
 
-  if (cusCastUserFunction(Freeze, 0, nullptr) < 0) {
-    RCLCPP_ERROR(this->get_logger(), "Failed to toggle freeze state");
+  if (freeze_state == request->data) {
+    response->success = false;
+    response->message =
+        "Freeze state already set to " + req + ". No action taken.";
+    return;
+  } else {
+    auto result = cusCastUserFunction(Freeze, 0, nullptr);
+    if (result != 0) {
+      response->success = false;
+      response->message = "Freeze state failed to change.";
+      return;
+    }
+    freeze_state = request->data;
+    response->success = true;
+    response->message = "Freeze state changed to " + req + ".";
+    RCLCPP_INFO(this->get_logger(), "Probe set to %s", req.c_str());
   }
-
-  response->success = true;
-  response->message = "Freeze state changed";
+  // freeze_state value is updated by the callback function
 }
 
 int ImagePublisher::initializeParameters() {
@@ -96,7 +98,7 @@ int ImagePublisher::initializeParameters() {
   initParams_.newRawImageFn = cast_app::newRawImageFn;
   initParams_.newSpectralImageFn = cast_app::newSpectralImageFn;
   initParams_.newImuDataFn = cast_app::newImuData;
-  initParams_.freezeFn = cast_app::freezeFn;
+  initParams_.freezeFn = FreezeCallbackFn;
   initParams_.buttonFn = cast_app::buttonFn;
   initParams_.progressFn = cast_app::progressFn;
   initParams_.errorFn = cast_app::errorFn;
@@ -136,16 +138,6 @@ int ImagePublisher::destroyConnection() { return cusCastDestroy(); }
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
   std::cout << "Opencv version: " << CV_VERSION << std::endl;
-  // create window
-  cv::namedWindow("Clarius US Image",
-                  cv::WINDOW_NORMAL); // Makes the window resizable
-  // instantiate black window
-  // cv::Mat empty_img = cv::Mat::zeros(640, 480, CV_8UC4);
-  // cv::imshow("Clarius US Image", empty_img);
-  // cv::waitKey(0);
-  // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Clarius US Image window
-  // created");
-
   auto node = std::make_shared<ImagePublisher>("image_publisher");
   int success = node->initializeParameters();
   if (success < 0) {

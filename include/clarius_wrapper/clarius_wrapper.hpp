@@ -12,7 +12,7 @@
 #include <std_srvs/srv/set_bool.hpp>
 
 // CvBridge
-#include <cv_bridge/cv_bridge.hpp>
+#include <cv_bridge/cv_bridge.h>
 
 // Clarius SDK
 #include "cast_app.h"
@@ -29,6 +29,7 @@ struct ImgContext {
   int channels = 0;
   bool newImageReceived = false;
 };
+bool freeze_state= true;
 
 // Global image context for callback usage
 extern ImgContext imgContext;
@@ -36,6 +37,9 @@ extern ImgContext imgContext;
 // Callback function for receiving images from Clarius
 void StoreImageFn(const void *newImage, const CusProcessedImageInfo *nfo,
                   int npos, const CusPosInfo *pos);
+void FreezeCallbackFn(int val) {
+  freeze_state = val;
+}
 
 class ImagePublisher : public rclcpp::Node {
 public:
@@ -66,7 +70,7 @@ private:
   std::string ipAddr_;
   std::string us_image_topic_name_;
   unsigned int port_ = 0;
-
+  
   // Clarius SDK initialization parameters
   CusInitParams initParams_;
 };
