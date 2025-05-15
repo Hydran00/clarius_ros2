@@ -18,8 +18,12 @@ void StoreImageFn(const void *newImage, const CusProcessedImageInfo *nfo,
   imgContext.width = nfo->width;
   imgContext.height = nfo->height;
   imgContext.channels = nfo->bitsPerPixel / 8;
-  imgContext.us_image =
-      cv::Mat(nfo->height, nfo->width, CV_8UC4, const_cast<void *>(newImage));
+  // Correct the format from ARGB to BGRA
+  cv::Mat rawImage(nfo->height, nfo->width, CV_8UC4,
+                   const_cast<void *>(newImage));
+  cv::cvtColor(rawImage, imgContext.us_image,
+               cv::COLOR_BGRA2RGBA); // Swaps BGR to RGB and keeps alpha
+
   imgContext.newImageReceived = true;
 }
 void FreezeCallbackFn(int val) {
