@@ -29,7 +29,6 @@ struct ImgContext {
   int channels = 0;
   bool newImageReceived = false;
 };
-bool freeze_state= true;
 
 // Global image context for callback usage
 extern ImgContext imgContext;
@@ -37,9 +36,7 @@ extern ImgContext imgContext;
 // Callback function for receiving images from Clarius
 void StoreImageFn(const void *newImage, const CusProcessedImageInfo *nfo,
                   int npos, const CusPosInfo *pos);
-void FreezeCallbackFn(int val) {
-  freeze_state = val;
-}
+void FreezeCallbackFn(int val);
 
 class ImagePublisher : public rclcpp::Node {
 public:

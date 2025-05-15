@@ -2,7 +2,11 @@
 
 // Global instance for image data
 ImgContext imgContext;
+bool freeze_state = true;
 
+// Mutexes for thread safety
+std::mutex imgMutex;
+std::mutex freezeMutex;
 // Image callback from Clarius SDK
 void StoreImageFn(const void *newImage, const CusProcessedImageInfo *nfo,
                   int npos, const CusPosInfo *pos) {
@@ -10,14 +14,18 @@ void StoreImageFn(const void *newImage, const CusProcessedImageInfo *nfo,
 
   if (!newImage || !nfo)
     return;
-
+  std::lock_guard<std::mutex> lock(imgMutex);
   imgContext.width = nfo->width;
   imgContext.height = nfo->height;
   imgContext.channels = nfo->bitsPerPixel / 8;
-
-  imgContext.us_image = cv::Mat(imgContext.height, imgContext.width, CV_8UC4,
-                                const_cast<void *>(newImage));
+  imgContext.us_image =
+      cv::Mat(nfo->height, nfo->width, CV_8UC4, const_cast<void *>(newImage));
   imgContext.newImageReceived = true;
+}
+void FreezeCallbackFn(int val) {
+  std::lock_guard<std::mutex> lock(freezeMutex);
+  // Update the freeze state
+  freeze_state = val;
 }
 
 // Constructor
@@ -50,9 +58,18 @@ ImagePublisher::ImagePublisher(const std::string &node_name,
 }
 
 void ImagePublisher::publishUSImage() {
-  auto image_msg =
-      cv_bridge::CvImage(std_msgs::msg::Header(), "bgra8", imgContext.us_image)
-          .toImageMsg();
+  std::lock_guard<std::mutex> lock(imgMutex);
+  if (imgContext.us_image.empty()) {
+    RCLCPP_WARN(this->get_logger(), "No image received yet.");
+    return;
+  }
+  RCLCPP_INFO(this->get_logger(), "Image size: %d x %d", imgContext.width,
+              imgContext.height);
+  cv::imshow("US Image", imgContext.us_image);
+  cv::waitKey(1);
+  auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgra8",
+                                      imgContext.us_image.clone())
+                       .toImageMsg();
   image_msg->header.frame_id = frame_id_;
   image_msg->header.stamp = this->now();
 
@@ -63,9 +80,9 @@ void ImagePublisher::publishUSImage() {
 void ImagePublisher::enableFreeze(
     const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
     std::shared_ptr<std_srvs::srv::SetBool::Response> response) {
+  std::lock_guard<std::mutex> lock(freezeMutex);
   std::string req = request->data ? "freeze" : "unfreeze";
   RCLCPP_INFO(this->get_logger(), "Request to %s probe", req.c_str());
-
   if (freeze_state == request->data) {
     response->success = false;
     response->message =
