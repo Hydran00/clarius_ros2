@@ -33,7 +33,7 @@ def generate_launch_description():
         parameters=[
             {"ft_sensor_topic_name": "/lbr/force_torque_broadcaster/wrench"},
             {"us_freeze_service_name": "enable_freeze"},
-            {"force_threshold": 2.0},
+            {"force_threshold": 1.4},
         ],
     )
 

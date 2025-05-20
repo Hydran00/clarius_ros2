@@ -18,9 +18,9 @@ void StoreImageFn(const void *newImage, const CusProcessedImageInfo *nfo,
   imgContext.width = nfo->width;
   imgContext.height = nfo->height;
   imgContext.channels = nfo->bitsPerPixel / 8;
-  // Correct the format from ARGB to BGRA
   cv::Mat rawImage(nfo->height, nfo->width, CV_8UC4,
                    const_cast<void *>(newImage));
+  // Correct the format from ARGB to BGRA
   cv::cvtColor(rawImage, imgContext.us_image,
                cv::COLOR_BGRA2RGBA); // Swaps BGR to RGB and keeps alpha
 
@@ -64,11 +64,11 @@ ImagePublisher::ImagePublisher(const std::string &node_name,
 void ImagePublisher::publishUSImage() {
   std::lock_guard<std::mutex> lock(imgMutex);
   if (imgContext.us_image.empty()) {
-    RCLCPP_WARN(this->get_logger(), "No image received yet.");
+    RCLCPP_WARN_ONCE(this->get_logger(), "No image received yet, try to unfreeze");
     return;
   }
-  RCLCPP_INFO(this->get_logger(), "Image size: %d x %d", imgContext.width,
-              imgContext.height);
+  // RCLCPP_INFO(this->get_logger(), "Image size: %d x %d", imgContext.width,
+  //             imgContext.height);
   cv::imshow("US Image", imgContext.us_image);
   cv::waitKey(1);
   auto image_msg = cv_bridge::CvImage(std_msgs::msg::Header(), "bgra8",
